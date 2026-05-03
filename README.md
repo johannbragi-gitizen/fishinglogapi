@@ -44,3 +44,32 @@ This produces a `publish` folder containing the files that IIS will serve.
 
 - **HTTP 500.31**: install the correct .NET runtime/hosting bundle on the server.
 - **HTTP 502.5**: check the app starts locally with `dotnet publish` output and review logs in Event Viewer.
+
+## Automatic deploy to local IIS on push to `main`
+
+A GitHub Actions workflow has been added at `.github/workflows/deploy-main-to-iis.yml`.
+
+### How it works
+
+- Triggers on every push to the `main` branch.
+- Runs on a **self-hosted Windows runner** (your local machine).
+- Restores, builds, and publishes `FishingLogApi`.
+- Runs `scripts/deploy-iis.ps1` to:
+  - stop the IIS site/app pool,
+  - mirror published files to your IIS folder,
+  - start the app pool/site again.
+
+### One-time setup on your local machine
+
+1. Install and configure a **GitHub self-hosted runner** on the same Windows machine where IIS is hosted.
+2. Ensure the runner service account has permission to:
+   - manage IIS,
+   - write to your IIS physical path,
+   - run PowerShell with `WebAdministration` module.
+3. Create IIS objects matching workflow defaults (or edit workflow env values):
+   - Site: `FishingLogApi`
+   - App Pool: `FishingLogApiAppPool`
+   - Physical path: `C:\inetpub\wwwroot\FishingLogApi`
+4. Push to `main` and check the **Actions** tab for deployment logs.
+
+> If your IIS names/paths differ, update `IIS_SITE_NAME`, `IIS_APP_POOL`, and `IIS_PHYSICAL_PATH` in the workflow file.

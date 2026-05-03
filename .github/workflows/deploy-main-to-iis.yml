@@ -1,0 +1,50 @@
+name: Deploy API to local IIS (main)
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: deploy-main-iis
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    # Requires a Windows self-hosted runner installed on the machine that hosts IIS.
+    runs-on: [self-hosted, windows]
+
+    env:
+      DOTNET_VERSION: '8.0.x'
+      PROJECT_PATH: 'FishingLogApi/FishingLogApi.csproj'
+      PUBLISH_OUTPUT: '${{ github.workspace }}\\publish'
+      IIS_SITE_NAME: 'FishingLogApi'
+      IIS_APP_POOL: 'FishingLogApiAppPool'
+      IIS_PHYSICAL_PATH: 'C:\\inetpub\\wwwroot\\FishingLogApi'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore ${{ env.PROJECT_PATH }}
+
+      - name: Build
+        run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --no-build --output "${{ env.PUBLISH_OUTPUT }}"
+
+      - name: Deploy to IIS
+        shell: pwsh
+        run: |
+          ./scripts/deploy-iis.ps1 `
+            -SourcePath "${{ env.PUBLISH_OUTPUT }}" `
+            -SiteName "${{ env.IIS_SITE_NAME }}" `
+            -AppPoolName "${{ env.IIS_APP_POOL }}" `
+            -DestinationPath "${{ env.IIS_PHYSICAL_PATH }}"
